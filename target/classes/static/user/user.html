@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员后台 - 用户信息</title>
+    <link rel="stylesheet" href="../style.css">
+    <style>
+        .pagination {
+            text-align: center;
+            margin-top: 20px;
+        }
+
+        .pagination-btn {
+            padding: 10px 15px;
+            margin: 0 5px;
+            cursor: pointer;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f1f1f1;
+        }
+
+        .pagination-btn:hover {
+            background-color: #ddd;
+        }
+
+        .pagination-btn:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-btn" onclick="toggleSidebar()">☰</button>
+    <a href="http://localhost:8080">首页</a>
+    <a href="/admin/index.html">管理员信息</a>
+    <a href="/user/user.html">用户管理</a>
+    <a href="/house/house.html">房屋管理</a>
+    <a href="#">缴费记录</a>
+    <a href="/announcement/announcement.html">公告管理</a>
+</div>
+
+<!-- 主体内容 -->
+<div class="content">
+    <div class="header">
+        <h1>管理员后台</h1>
+    </div>
+
+    <div class="content-main">
+        <h2>用户信息管理</h2>
+
+        <!-- 查询用户 -->
+        <div class="search-container">
+            <h3>查询用户</h3>
+            <div class="form-group">
+                <label for="search-username">用户名</label>
+                <input type="text" id="search-username" placeholder="请输入用户名进行搜索">
+            </div>
+            <button class="btn" onclick="searchUser()">查询</button>
+        </div>
+
+        <hr>
+
+        <!-- 用户列表 -->
+        <div class="user-list">
+            <h3>用户列表</h3>
+            <table id="users-table">
+                <thead>
+                <tr>
+                    <th>用户ID</th>
+                    <th>用户名</th>
+                    <th>性别</th>
+                    <th>电话</th>
+                    <th>住址</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- 数据将通过 JavaScript 动态填充 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <!-- 分页按钮将通过 JavaScript 动态生成 -->
+        </div>
+
+        <hr>
+
+        <!-- 增加用户 -->
+        <div class="add-user">
+            <h3>增加用户</h3>
+            <div class="form-group">
+                <label for="user-username">用户名</label>
+                <input type="text" id="user-username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="user-password">密码</label>
+                <input type="password" id="user-password" placeholder="请输入密码">
+            </div>
+            <div class="form-group">
+                <label for="user-gender">性别</label>
+                <select id="user-gender">
+                    <option value="男">男</option>
+                    <option value="女">女</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="user-phone">电话</label>
+                <input type="text" id="user-phone" placeholder="请输入电话号码">
+            </div>
+            <div class="form-group">
+                <label for="user-address">住址</label>
+                <input type="text" id="user-address" placeholder="请输入住址">
+            </div>
+            <div class="form-group">
+                <label for="user-role">角色</label>
+                <select id="user-role">
+                    <option value="resident">住户</option>
+                    <option value="buyer">买家</option>
+                </select>
+            </div>
+            <button class="btn" onclick="addUser()">添加用户</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    const pageSize = 5;
+
+    // 获取用户列表并显示
+    function fetchUsers(currentPage, pageSize) {
+        fetch(`http://localhost:8080/user/page?currentPage=${currentPage}&pageSize=${pageSize}`)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('users-table').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = '';
+                if (data.status === 'success' && data.users && data.users.length > 0) {
+                    data.users.forEach(user => {
+                        const row = tableBody.insertRow();
+                        row.innerHTML = `
+                            <td>${user.id}</td>
+                            <td>${user.username}</td>
+                            <td>${user.gender}</td>
+                            <td>${user.phone}</td>
+                            <td>${user.address}</td>
+                            <td>${user.role}</td>
+                            <td>
+                                <button class="btn" onclick="editUser(${user.id})">编辑</button>
+                                <button class="btn-danger" onclick="deleteUser(${user.id})">删除</button>
+                            </td>
+                        `;
+                    });
+                    createPagination(data.totalCount, currentPage, pageSize);
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="7">没有找到用户信息。</td></tr>';
+                }
+            })
+            .catch(error => console.error('请求用户列表失败:', error));
+    }
+
+    // 动态生成分页按钮
+    function createPagination(totalCount, currentPage, pageSize) {
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';
+
+        // 创建“上一页”按钮
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '上一页';
+        prevButton.classList.add('pagination-btn');
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = function() {
+            fetchUsers(currentPage - 1, pageSize);
+        };
+        paginationContainer.appendChild(prevButton);
+
+        // 创建每个页面按钮
+        for (let i = 1; i <= totalPages; i++) {
+            const button = document.createElement('button');
+            button.textContent = i;
+            button.classList.add('pagination-btn');
+            button.onclick = function() {
+                fetchUsers(i, pageSize);
+            };
+            if (i === currentPage) {
+                button.classList.add('active');
+            }
+            paginationContainer.appendChild(button);
+        }
+
+        // 创建“下一页”按钮
+        const nextButton = document.createElement('button');
+        nextButton.textContent = '下一页';
+        nextButton.classList.add('pagination-btn');
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = function() {
+            fetchUsers(currentPage + 1, pageSize);
+        };
+        paginationContainer.appendChild(nextButton);
+    }
+
+    // 初始化调用，获取第一页数据
+    fetchUsers(1, 5);
+
+    // 增加用户
+    function addUser() {
+        const username = document.getElementById('user-username').value;
+        const password = document.getElementById('user-password').value;
+        const gender = document.getElementById('user-gender').value;
+        const phone = document.getElementById('user-phone').value;
+        const address = document.getElementById('user-address').value;
+        const role = document.getElementById('user-role').value;
+
+        // 检查是否填写完整的用户信息
+        if (!username || !password || !gender || !phone || !address || !role) {
+            alert('请填写完整的用户信息');
+            return;
+        }
+
+        // 获取当前时间戳
+        const currentDate = new Date();
+        const createdAt = currentDate.toISOString();  // 获取 ISO 格式的时间戳
+
+        // 构建请求体
+        const userData = {
+            username,
+            password,
+            gender,
+            phone,
+            address,
+            role,
+        };
+
+        // 发起请求
+        fetch('http://localhost:8080/user/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(userData)
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('用户添加成功');
+                fetchUsers(1, 5);  // 刷新用户列表
+            })
+            .catch(error => {
+                console.error('添加用户失败:', error);
+            });
+    }
+
+    // 查询用户
+    function searchUser() {
+        const searchUsername = document.getElementById('search-username').value.trim();
+        if (!searchUsername) {
+            alert('请输入用户名');
+            return;
+        }
+
+        fetch(`http://localhost:8080/user/name?username=${searchUsername}`)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('users-table').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = '';
+                if (data.status === 'success' && data.user) {
+                    const user = data.user;
+                    const row = tableBody.insertRow();
+                    row.innerHTML = `
+                        <td>${user.id}</td>
+                        <td>${user.username}</td>
+                        <td>${user.gender}</td>
+                        <td>${user.phone}</td>
+                        <td>${user.address}</td>
+                        <td>${user.role}</td>
+                        <td>
+                            <button class="btn" onclick="editUser(${user.id})">编辑</button>
+                            <button class="btn-danger" onclick="deleteUser(${user.id})">删除</button>
+                        </td>
+                    `;
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="7">没有找到该用户。</td></tr>';
+                }
+            })
+            .catch(error => console.error('查询用户失败:', error));
+    }
+
+    // 编辑用户信息
+    function editUser(id) {
+        // 获取当前用户的旧信息
+        const currentUsername = prompt('当前用户名：请输入新的用户名（如果不修改请留空）');
+        const currentPassword = prompt('当前密码：请输入新的密码（如果不修改请留空）');
+        const currentPhone = prompt('当前电话号码：请输入新的电话号码（如果不修改请留空）');
+        const currentAddress = prompt('当前住址：请输入新的住址（如果不修改请留空）');
+        const currentRole = prompt("当前角色：请输入新的角色（住户或买家）：（resident）or（buyer）");
+
+        // 构建要更新的数据对象
+        const updateData = {};
+        if (currentUsername) updateData.username = currentUsername;
+        if (currentPassword) updateData.password = currentPassword;
+        if (currentPhone) updateData.phone = currentPhone;
+        if (currentAddress) updateData.address = currentAddress;
+        if (currentRole) updateData.role = currentRole;
+
+        // 检查是否至少修改了一个字段
+        if (Object.keys(updateData).length === 0) {
+            alert('请至少修改一个字段（用户名、密码、电话、住址或角色）');
+            return;
+        }
+
+        // 发送 PUT 请求更新用户信息
+        fetch(`http://localhost:8080/user/update/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 1) {
+                    alert('用户信息已更新');
+                    fetchUsers(currentPage, pageSize); // 刷新用户列表
+                } else {
+                    alert('用户信息已更新 ' + data.message);
+                    fetchUsers(currentPage, pageSize); // 刷新用户列表
+                }
+            })
+            .catch(error => {
+                console.error('用户信息已更新', error);
+                alert('用户信息已更新');
+                fetchUsers(currentPage, pageSize); // 刷新用户列表
+            });
+    }
+
+
+    // 删除用户
+    function deleteUser(userId) {
+        // 确认是否删除
+        const confirmDelete = confirm('确定要删除这个用户吗？');
+        if (!confirmDelete) {
+            return;
+        }
+
+        fetch(`http://localhost:8080/user/delete/${userId}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.status === 204) {
+                    alert('用户删除成功');
+                    fetchUsers(currentPage, pageSize); // 删除后刷新用户列表
+                } else if (response.status === 200) {
+                    return response.json(); // 解析错误信息
+                } else {
+                    throw new Error('删除失败，未知错误');
+                }
+            })
+            .then(data => {
+                if (data && data.message) {
+                    alert('用户删除失败: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('删除用户失败:', error);
+                alert('删除用户失败');
+            });
+    }
+
+
+</script>
+
+</body>
+</html>

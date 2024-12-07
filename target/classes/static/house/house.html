@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>后台管理系统 - 房屋信息</title>
+    <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-btn" onclick="toggleSidebar()">☰</button>
+    <a href="http://localhost:8080">首页</a>
+    <a href="/admin/index.html">管理员信息</a>
+    <a href="/user/user.html">用户管理</a>
+    <a href="/house/house.html">房屋管理</a>
+    <a href="#">缴费记录</a>
+    <a href="/announcement/announcement.html">公告管理</a>
+</div>
+<div class="container">
+    <div class="header">
+        <h1>房屋信息与公告</h1>
+    </div>
+
+    <div class="main-content">
+        <!-- 公告展示区域 -->
+        <div class="announcement-section">
+            <h2>公告</h2>
+            <div id="announcementList">
+                <!-- 公告内容将通过 JavaScript 动态插入这里 -->
+            </div>
+        </div>
+
+        <!-- 房屋信息展示区域 -->
+        <div class="house-list" id="houseList">
+            <h2>房屋信息管理</h2>
+            <!-- 房屋信息将通过 JavaScript 动态插入这里 -->
+        </div>
+
+        <div class="bottom-message">
+            <p>本系统为房屋管理后台，包含房屋信息的展示、编辑、删除等功能。</p>
+        </div>
+
+        <!-- 新增房屋信息的弹窗 -->
+        <div id="addHouseModal" class="modal">
+            <div class="modal-content">
+                <span class="close" onclick="closeAddHouseModal()">&times;</span>
+                <h2>添加房屋信息</h2>
+                <form id="addHouseForm">
+                    <label for="houseNumber">房屋编号:</label>
+                    <input type="text" id="houseNumber" name="houseNumber" required><br><br>
+
+                    <label for="area">面积:</label>
+                    <input type="number" id="area" name="area" required><br><br>
+
+                    <label for="price">售价:</label>
+                    <input type="number" id="price" name="price" required><br><br>
+
+                    <label for="ownerId">房主ID:</label>
+                    <input type="number" id="ownerId" name="ownerId" required><br><br>
+
+                    <label for="status">状态:</label>
+                    <select id="status" name="status" required>
+                        <option value="available">可售</option>
+                        <option value="sold">已售</option>
+                    </select><br><br>
+
+                    <button type="submit">添加房屋</button>
+                </form>
+            </div>
+        </div>
+
+    </div>
+
+
+
+    <script>
+        // 请求后端 API 获取房屋数据
+        function fetchHouses() {
+            const currentPage = 1;   // 页码
+            const pageSize = 5;      // 每页显示的记录数
+
+            // 构造查询参数
+            const url = `http://localhost:8080/house/page?currentPage=${currentPage}&pageSize=${pageSize}`;
+
+            fetch(url, {
+                method: 'GET',  // 使用 GET 请求
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log('房屋数据:', data);  // 打印返回的数据，检查结构
+                    const houseListElement = document.getElementById('houseList');
+                    houseListElement.innerHTML = '';  // 清空当前房屋列表
+
+                    if (data.houses && data.houses.length > 0) {  // 判断返回的 house 数组
+                        data.houses.forEach(house => {  // 遍历房屋数据
+                            const houseCard = document.createElement('div');
+                            houseCard.classList.add('house-card');
+                            houseCard.innerHTML = `
+                                <h3>房屋编号: ${house.houseNumber}</h3>
+                                <p>面积: ${house.area} 平方米</p>
+                                <p>售价: ¥${house.price}</p>
+                                <p>状态: ${house.status === 'available' ? '可售' : '已售'}</p>
+                                <p>房主ID: ${house.ownerId}</p>
+
+                                <button class="btn" onclick="deleteHouse(${house.id})">删除</button>
+                            `;
+                            houseListElement.appendChild(houseCard);
+                        });
+                    } else {
+                        houseListElement.innerHTML = '<p>没有找到房屋信息</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('获取房屋信息失败:', error);
+                    const houseListElement = document.getElementById('houseList');
+                    houseListElement.innerHTML = '<p>加载房屋信息时发生错误，请稍后再试。</p>';
+                });
+        }
+
+        // 添加房屋信息
+        document.getElementById('addHouseForm').onsubmit = function(event) {
+            event.preventDefault();
+
+            const houseNumber = document.getElementById('houseNumber').value;
+            const area = document.getElementById('area').value;
+            const price = document.getElementById('price').value;
+            const ownerId = document.getElementById('ownerId').value;
+            const status = document.getElementById('status').value;
+
+            const newHouse = {
+                price,
+                ownerId,
+                status,
+                area,
+                houseNumber
+            };
+
+            fetch('http://localhost:8080/house/add', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newHouse)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('房屋信息添加成功');
+                        fetchHouses();  // 刷新房屋列表
+                        closeAddHouseModal();  // 关闭弹窗
+                    } else {
+                        alert('房屋信息添加成功');
+                        fetchHouses();  // 刷新房屋列表
+                    }
+                })
+                .catch(error => {
+                    console.error('error', error);
+                    alert('error');
+
+                });
+        }
+
+
+
+        /*// 编辑房屋信息
+        function editHouse(houseId) {
+            fetch(`http://localhost:8080/house/${houseId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.house) {
+                        // 填充表单数据
+                        document.getElementById('updateHouseNumber').value = data.house.houseNumber;
+                        document.getElementById('updateArea').value = data.house.area;
+                        document.getElementById('updatePrice').value = data.house.price;
+                        document.getElementById('updateStatus').value = data.house.status;
+
+                        // 显示更新弹窗
+                        document.getElementById('updateHouseModal').style.display = 'block';
+                    } else {
+                        alert('未找到该房屋信息');
+                    }
+                })
+                .catch(error => {
+                    console.error('编辑房屋信息失败:', error);
+                    alert('获取房屋信息时发生错误，请稍后再试。');
+                });
+        }
+*/
+        // 删除房屋信息
+        function deleteHouse(houseId) {
+            if (confirm('确定要删除该房屋信息吗？')) {
+                fetch(`http://localhost:8080/house/delete/${houseId}`, {
+                    method: 'DELETE'
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        alert('房屋信息删除成功');
+                        fetchHouses();  // 刷新房屋列表
+                    })
+                    .catch(error => {
+                        console.error('删除房屋信息失败:', error);
+                        alert('删除房屋信息时发生错误，请稍后再试。');
+                    });
+            }
+        }
+
+        // 打开添加房屋弹窗
+        function openAddHouseModal() {
+            document.getElementById('addHouseModal').style.display = 'block';
+        }
+
+        // 关闭添加房屋弹窗
+        function closeAddHouseModal() {
+            document.getElementById('addHouseModal').style.display = 'none';
+        }
+
+        // 关闭编辑房屋弹窗
+        function closeModal() {
+            document.getElementById('updateHouseModal').style.display = 'none';
+        }
+
+        // 页面加载时获取房屋和公告数据
+        window.onload = function() {
+            fetchHouses();  // 获取房屋信息
+            fetchAnnouncements();  // 获取公告信息
+        }
+    </script>
+</body>
+</html>

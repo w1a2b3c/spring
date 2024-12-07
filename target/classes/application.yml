@@ -1,0 +1,44 @@
+spring:
+  application:
+    name: System
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/cdb?characterEncoding=UTF-8&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: root
+    password: Wt1a2b3c4d
+    c3p0:
+      min-pool-size: 10
+      max-pool-size: 100
+      acquire-increment: 5
+      max-idle-time: 30
+      initialPoolSize: 10
+  mvc:
+    cors:
+      enabled: true
+      mapping: /api/**
+      allowed-origins: http://localhost:8080
+      allowed-methods: GET, POST, PUT, DELETE
+      allowed-headers: Content-Type, Authorization
+      allow-credentials: true
+
+  main:
+    web-application-type: servlet
+
+
+
+
+server:
+  port: 8080
+  ssl:
+    enabled: false
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+sky:
+  jwt:
+    admin-secret-key: itcast
+    admin-ttl: 7200000
+    admin-token-name: token

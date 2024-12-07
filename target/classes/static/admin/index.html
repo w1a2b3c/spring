@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员后台 - 管理员信息</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-btn" onclick="toggleSidebar()">☰</button>
+    <a href="http://localhost:8080">首页</a>
+    <a href="/admin/index.html">管理员信息</a>
+    <a href="/user/user.html">用户管理</a>
+    <a href="/house/house.html">房屋管理</a>
+    <a href="#">缴费记录</a>
+    <a href="/announcement/announcement.html">公告管理</a>
+</div>
+
+<!-- 主体内容 -->
+<div class="content">
+    <div class="header">
+        <h1>管理员后台</h1>
+    </div>
+
+    <div class="content-main">
+        <h2>管理员信息管理</h2>
+
+        <!-- 查询管理员 -->
+        <div class="search-container">
+            <h3>查询管理员</h3>
+            <div class="form-group">
+                <label for="search-name">管理员姓名</label>
+                <input type="text" id="search-name" placeholder="请输入管理员姓名进行搜索">
+            </div>
+            <button class="btn" onclick="searchAdmin()">查询</button>
+        </div>
+
+        <hr>
+
+        <!-- 管理员列表 -->
+        <div class="admin-list">
+            <h3>管理员列表</h3>
+            <table id="admin-table">
+                <thead>
+                <tr>
+                    <th>管理员ID</th>
+                    <th>用户名</th>
+                    <th>角色</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- 数据将通过 JavaScript 动态填充 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <!-- 分页按钮将通过 JavaScript 动态生成 -->
+        </div>
+
+        <hr>
+
+        <!-- 增加管理员 -->
+        <div class="add-admin">
+            <h3>增加管理员</h3>
+            <div class="form-group">
+                <label for="admin-username">用户名</label>
+                <input type="text" id="admin-username" placeholder="请输入用户名">
+            </div>
+            <div class="form-group">
+                <label for="admin-password">密码</label>
+                <input type="password" id="admin-password" placeholder="请输入密码">
+            </div>
+            <button class="btn" onclick="addAdmin()">添加管理员</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    const pageSize = 5;
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchAdmins(currentPage, pageSize);  // 确保页面元素加载后再执行
+    });
+
+
+    // 获取管理员列表并显示
+    function fetchAdmins(currentPage, pageSize) {
+        fetch(`http://localhost:8080/admin/page?currentPage=${currentPage}&pageSize=${pageSize}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('管理员数据:', data);  // 输出管理员数据
+                const tableBody = document.getElementById('admin-table').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = '';  // 清空当前表格内容
+                if (data.status === 'success' && data.admins && data.admins.length > 0) {
+                    data.admins.forEach(admin => {
+                        const row = tableBody.insertRow();
+                        row.innerHTML = `
+                <td>${admin.id}</td>
+                <td>${admin.username}</td>
+                <td>${admin.role}</td>
+                <td>
+                    <button class="btn" onclick="editAdmin(${admin.id})">编辑</button>
+                    <button class="btn-danger" onclick="deleteAdmin(${admin.id})">删除</button>
+                </td>
+            `;
+                    });
+                    createPagination(data.totalCount, currentPage, pageSize);  // 生成分页
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4">没有找到管理员信息。</td></tr>';
+                }
+            })
+                .catch(error => {
+                console.error('请求管理员列表失败:', error);
+            });
+    }
+
+    // 动态生成分页按钮
+    function createPagination(totalCount, currentPage, pageSize) {
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';
+
+        // 创建“上一页”按钮
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '上一页';
+        prevButton.classList.add('pagination-btn');
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = function() {
+            fetchAdmins(currentPage - 1, pageSize);
+        };
+        paginationContainer.appendChild(prevButton);
+
+        // 创建每个页面按钮
+        for (let i = 1; i <= totalPages; i++) {
+            const button = document.createElement('button');
+            button.textContent = i;
+            button.classList.add('pagination-btn');
+            button.onclick = function() {
+                fetchAdmins(i, pageSize);
+            };
+            if (i === currentPage) {
+                button.classList.add('active');
+            }
+            paginationContainer.appendChild(button);
+        }
+
+        // 创建“下一页”按钮
+        const nextButton = document.createElement('button');
+        nextButton.textContent = '下一页';
+        nextButton.classList.add('pagination-btn');
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = function() {
+            fetchAdmins(currentPage + 1, pageSize);
+        };
+        paginationContainer.appendChild(nextButton);
+    }
+    // 增加管理员
+    function addAdmin() {
+        const username = document.getElementById('admin-username').value;
+        const password = document.getElementById('admin-password').value;
+
+        if (!username || !password) {
+            alert('请输入用户名和密码');
+            return;
+        }
+
+        fetch('http://localhost:8080/admin/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('管理员添加成功');
+                fetchAdmins(1, 5); // 刷新管理员列表
+            })
+            .catch(error => {
+                console.error('添加管理员失败:', error);
+            });
+    }
+
+    // 查询管理员
+    function searchAdmin() {
+        const searchName = document.getElementById('search-name').value.trim();
+        if (!searchName) {
+            alert('请输入管理员名称');
+            return;
+        }
+
+        fetch(`http://localhost:8080/admin/name?name=${searchName}`)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById('admin-table').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = '';
+                if (data.code === 1 && data.data && data.data.length > 0) {
+                    data.data.forEach(admin => {
+                        const row = tableBody.insertRow();
+                        row.innerHTML = `
+                            <td>${admin.id}</td>
+                            <td>${admin.username}</td>
+                            <td>${admin.role}</td>
+                            <td>
+                                <button class="btn" onclick="editAdmin(${admin.id})">编辑</button>
+                                <button class="btn-danger" onclick="deleteAdmin(${admin.id})">删除</button>
+                            </td>
+                        `;
+                    });
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4">没有找到管理员信息。</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('请求管理员列表失败:', error);
+            });
+    }
+
+    // 编辑管理员
+    function editAdmin(id) {
+        const currentUsername = prompt('当前用户名：请输入新的用户名（如果不修改请留空）');
+        const currentPassword = prompt('当前密码：请输入新的密码（如果不修改请留空）');
+
+        const updateData = {};
+        if (currentUsername) updateData.username = currentUsername;
+        if (currentPassword) updateData.password = currentPassword;
+
+        if (!currentUsername && !currentPassword) {
+            alert('请至少修改一个字段（用户名或密码）');
+            return;
+        }
+
+        fetch(`http://localhost:8080/admin/update/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(updateData)
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('管理员信息已更新');
+                fetchAdmins(currentPage, pageSize); // 刷新管理员列表
+            })
+            .catch(error => {
+                console.error('更新管理员信息失败:', error);
+            });
+    }
+
+    // 删除管理员
+    function deleteAdmin(id) {
+        const confirmation = confirm('您确定要删除该管理员吗？');
+        if (!confirmation) return;
+
+        fetch(`http://localhost:8080/admin/delete/${id}`, {
+            method: 'DELETE'
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('管理员已删除');
+                fetchAdmins(currentPage, pageSize); // 刷新管理员列表
+            })
+            .catch(error => {
+                console.error('删除管理员失败:', error);
+            });
+    }
+
+    // 切换侧边栏的显示与隐藏
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('open');
+        const content = document.querySelector('.content');
+        content.style.marginLeft = sidebar.classList.contains('open') ? '250px' : '0';
+    }
+
+</script>
+</body>
+</html>

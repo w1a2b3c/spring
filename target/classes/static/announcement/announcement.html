@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理员后台 - 公告管理</title>
+    <link rel="stylesheet" href="../style.css">
+</head>
+<body>
+
+<!-- 侧边栏 -->
+<div class="sidebar" id="sidebar">
+    <button class="sidebar-btn" onclick="toggleSidebar()">☰</button>
+    <a href="http://localhost:8080">首页</a>
+    <a href="/admin/index.html">管理员信息</a>
+    <a href="/user/user.html">用户管理</a>
+    <a href="/house/house.html">房屋管理</a>
+    <a href="/announcement/announcement.html">公告管理</a>
+</div>
+
+<!-- 主体内容 -->
+<div class="content">
+    <div class="header">
+        <h1>管理员后台</h1>
+    </div>
+
+    <div class="content-main">
+        <h2>公告管理</h2>
+
+
+
+        <hr>
+
+        <!-- 公告列表 -->
+        <div class="announcement-list">
+            <h3>公告列表</h3>
+            <table id="announcement-table">
+                <thead>
+                <tr>
+                    <th>公告ID</th>
+                    <th>公告标题</th>
+                    <th>发布内容</th>
+                    <th>发布日期</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                <!-- 数据将通过 JavaScript 动态填充 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页控件 -->
+        <div class="pagination" id="pagination">
+            <!-- 分页按钮将通过 JavaScript 动态生成 -->
+        </div>
+
+        <hr>
+
+        <!-- 增加公告 -->
+        <div class="add-announcement">
+            <h3>增加公告</h3>
+            <div class="form-group">
+                <label for="announcement-title">公告标题</label>
+                <input type="text" id="announcement-title" placeholder="请输入公告标题">
+            </div>
+            <div class="form-group">
+                <label for="announcement-content">公告内容</label>
+                <textarea id="announcement-content" placeholder="请输入公告内容"></textarea>
+            </div>
+            <button class="btn" onclick="addAnnouncement()">添加公告</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPage = 1;
+    const pageSize = 5;
+
+    // 页面加载完成后，获取公告列表
+    document.addEventListener('DOMContentLoaded', function() {
+        fetchAnnouncements(currentPage, pageSize);  // 确保页面元素加载后再执行
+    });
+
+
+    // 获取公告列表并显示
+    function fetchAnnouncements(currentPage, pageSize) {
+        fetch(`http://localhost:8080/announcement/page?currentPage=${currentPage}&pageSize=${pageSize}`)
+            .then(response => response.json())
+            .then(data => {
+                console.log('公告数据:', data);  // 输出公告数据用于调试
+
+                if (data.code !== 1) {
+                    alert('获取公告失败');
+                    return;
+                }
+
+                const tableBody = document.getElementById('announcement-table').getElementsByTagName('tbody')[0];
+                tableBody.innerHTML = '';  // 清空当前表格内容
+
+                // 确保返回的公告数据有效
+                if (data.data && data.data.announcements && Array.isArray(data.data.announcements) && data.data.announcements.length > 0) {
+                    // 遍历公告数据并填充表格
+                    data.data.announcements.forEach(announcement => {
+                        const row = tableBody.insertRow();
+                        row.innerHTML = `
+                        <td>${announcement.id}</td>
+                        <td>${announcement.title}</td>
+                        <td>${announcement.content}</td>
+                        <td>${formatDate(announcement.createdAt)}</td> <!-- 显示公告的创建时间 -->
+                        <td>
+                            <button class="btn-danger" onclick="deleteAnnouncement(${announcement.id})">删除</button>
+                        </td>
+                    `;
+                    });
+                    // 生成分页按钮
+                    createPagination(data.data.totalCount, currentPage, pageSize);
+                } else {
+                    tableBody.innerHTML = '<tr><td colspan="4">没有找到公告信息。</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('请求公告列表失败:', error);
+            });
+    }
+
+    // 格式化日期
+    function formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString(); // 返回日期格式，如：2024/11/30
+    }
+
+
+    // 动态生成分页按钮
+    function createPagination(totalCount, currentPage, pageSize) {
+        const totalPages = Math.ceil(totalCount / pageSize);
+        const paginationContainer = document.getElementById('pagination');
+        paginationContainer.innerHTML = '';  // 清空分页容器
+
+        // 创建“上一页”按钮
+        const prevButton = document.createElement('button');
+        prevButton.textContent = '上一页';
+        prevButton.classList.add('pagination-btn');
+        prevButton.disabled = currentPage === 1;
+        prevButton.onclick = function() {
+            fetchAnnouncements(currentPage - 1, pageSize);
+        };
+        paginationContainer.appendChild(prevButton);
+
+        // 创建每个页面按钮
+        for (let i = 1; i <= totalPages; i++) {
+            const button = document.createElement('button');
+            button.textContent = i;
+            button.classList.add('pagination-btn');
+            button.onclick = function() {
+                fetchAnnouncements(i, pageSize);
+            };
+            if (i === currentPage) {
+                button.classList.add('active');
+            }
+            paginationContainer.appendChild(button);
+        }
+
+        // 创建“下一页”按钮
+        const nextButton = document.createElement('button');
+        nextButton.textContent = '下一页';
+        nextButton.classList.add('pagination-btn');
+        nextButton.disabled = currentPage === totalPages;
+        nextButton.onclick = function() {
+            fetchAnnouncements(currentPage + 1, pageSize);
+        };
+        paginationContainer.appendChild(nextButton);
+    }
+
+    /// 增加公告
+    function addAnnouncement() {
+        const title = document.getElementById('announcement-title').value;
+        const content = document.getElementById('announcement-content').value;
+
+        // 获取当前时间并格式化
+        const createdAt = new Date().toISOString(); // 获取当前时间并转为 ISO 8601 格式
+
+        if (!title || !content) {
+            alert('请输入公告标题和内容');
+            return;
+        }
+
+        // 发送数据到后端
+        fetch('http://localhost:8080/announcement/insert', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ title, content, createdAt })  // 发送包含时间的公告数据
+        })
+            .then(response => response.json())
+            .then(() => {
+                alert('公告添加成功');
+                fetchAnnouncements(1, 5); // 刷新公告列表
+            })
+            .catch(error => {
+                console.error('添加公告失败:', error);
+            });
+    }
+
+
+    // 删除公告
+    function deleteAnnouncement(id) {
+        const confirmDelete = confirm('确认删除该公告吗？');
+        if (confirmDelete) {
+            fetch(`http://localhost:8080/announcement/delete/${id}`, {
+                method: 'DELETE'
+            })
+                .then(response => response.json())
+                .then(() => {
+                    alert('公告已删除');
+                    fetchAnnouncements(currentPage, pageSize); // 刷新公告列表
+                })
+                .catch(error => {
+                    console.error('删除公告失败:', error);
+                });
+        }
+    }
+
+    // 切换侧边栏的显示与隐藏
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        sidebar.classList.toggle('active');
+    }
+</script>
+
+</body>
+</html>
